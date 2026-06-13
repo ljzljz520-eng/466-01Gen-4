@@ -1,15 +1,14 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Project, Role, Photo, Rectification } from '../types'
+import type { Project, Photo, Rectification } from '../types'
 import { mockProject } from '../data/mockData'
+import { useAuthStore } from './useAuthStore'
 
 interface ProjectState {
   project: Project
-  currentRole: Role
-  setRole: (role: Role) => void
-  uploadPhoto: (nodeId: string, photo: Omit<Photo, 'id' | 'uploadAt' | 'uploadBy'>) => void
+  uploadPhoto: (nodeId: string, photo: Omit<Photo, 'id' | 'uploadAt' | 'uploadBy' | 'uploadByUserId' | 'uploadByUserName'>) => void
   submitNode: (nodeId: string) => void
-  signNode: (nodeId: string, signatureData?: string) => void
+  signNode: (nodeId: string, signatureData?: string) => boolean
   addRectification: (nodeId: string, description: string, beforePhotos?: Photo[]) => void
   resolveRectification: (nodeId: string, rectId: string, afterPhotos?: Photo[]) => void
   verifyRectification: (nodeId: string, rectId: string, passed: boolean) => void
@@ -31,15 +30,20 @@ const getNowString = () => {
   })
 }
 
+const getCurrentUser = () => {
+  const { currentUser } = useAuthStore.getState()
+  return currentUser
+}
+
+const addLog = (action: string, nodeId?: string, nodeName?: string, details?: Record<string, unknown>) => {
+  const { addOperationLog } = useAuthStore.getState()
+  addOperationLog(action, nodeId, nodeName, details)
+}
+
 export const useProjectStore = create<ProjectState>()(
   persist(
     (set, get) => ({
       project: mockProject,
-      currentRole: 'foreman',
-
-      setRole: (role: Role) => {
-        set({ currentRole: role })
-      },
 
       getNodeIndex: (nodeId: string) => {
         const { project } = get()
@@ -54,15 +58,22 @@ export const useProjectStore = create<ProjectState>()(
       },
 
       uploadPhoto: (nodeId: string, photo) => {
-        const { currentRole, project } = get()
+        const user = getCurrentUser()
+        if (!user) return
+
+        const { project } = get()
         const nodeIndex = project.nodes.findIndex((n) => n.id === nodeId)
         if (nodeIndex === -1) return
+
+        const node = project.nodes[nodeIndex]
 
         const newPhoto: Photo = {
           ...photo,
           id: generateId(),
           uploadAt: getNowString(),
-          uploadBy: currentRole,
+          uploadBy: user.role,
+          uploadByUserId: user.id,
+          uploadByUserName: user.name,
         }
 
         set((state) => {
@@ -78,9 +89,14 @@ export const useProjectStore = create<ProjectState>()(
             },
           }
         })
+
+        addLog('上传照片', nodeId, node.name, { photoCount: 1 })
       },
 
       submitNode: (nodeId: string) => {
+        const user = getCurrentUser()
+        if (!user) return
+
         const { project } = get()
         const nodeIndex = project.nodes.findIndex((n) => n.id === nodeId)
         if (nodeIndex === -1) return
@@ -97,6 +113,8 @@ export const useProjectStore = create<ProjectState>()(
             ...newNodes[nodeIndex],
             status: 'submitted',
             submittedAt: getNowString(),
+            submittedByUserId: user.id,
+            submittedByUserName: user.name,
           }
           return {
             project: {
@@ -105,21 +123,28 @@ export const useProjectStore = create<ProjectState>()(
             },
           }
         })
+
+        addLog('提交验收申请', nodeId, node.name)
       },
 
-      signNode: (nodeId: string, signatureData?: string) => {
-        const { currentRole, project } = get()
+      signNode: (nodeId: string, signatureData?: string): boolean => {
+        const user = getCurrentUser()
+        if (!user) return false
+
+        const { project } = get()
         const nodeIndex = project.nodes.findIndex((n) => n.id === nodeId)
-        if (nodeIndex === -1) return
+        if (nodeIndex === -1) return false
 
         const node = project.nodes[nodeIndex]
-        if (node.status !== 'submitted') return
+        if (node.status !== 'submitted' && node.status !== 'rejected') return false
 
         const hasPendingRect = node.rectifications.some((r) => r.status === 'pending')
-        if (hasPendingRect) return
+        if (hasPendingRect) return false
 
-        const sigIndex = node.signatures.findIndex((s) => s.role === currentRole)
-        if (sigIndex === -1) return
+        const sigIndex = node.signatures.findIndex((s) => s.role === user.role)
+        if (sigIndex === -1) return false
+
+        if (node.signatures[sigIndex].signed) return false
 
         set((state) => {
           const newNodes = [...state.project.nodes]
@@ -129,6 +154,7 @@ export const useProjectStore = create<ProjectState>()(
             signed: true,
             signedAt: getNowString(),
             signatureData: signatureData || `sig-${generateId()}`,
+            signedByUserId: user.id,
           }
 
           const allSigned = newSignatures.every((s) => s.signed)
@@ -148,19 +174,30 @@ export const useProjectStore = create<ProjectState>()(
             },
           }
         })
+
+        addLog('签字确认', nodeId, node.name, { role: user.role })
+
+        return true
       },
 
       addRectification: (nodeId: string, description: string, beforePhotos: Photo[] = []) => {
-        const { currentRole, project } = get()
+        const user = getCurrentUser()
+        if (!user) return
+
+        const { project } = get()
         const nodeIndex = project.nodes.findIndex((n) => n.id === nodeId)
         if (nodeIndex === -1) return
+
+        const node = project.nodes[nodeIndex]
 
         const newRect: Rectification = {
           id: generateId(),
           description,
           status: 'pending',
           createdAt: getNowString(),
-          createdBy: currentRole,
+          createdBy: user.role,
+          createdByUserId: user.id,
+          createdByUserName: user.name,
           beforePhotos,
           afterPhotos: [],
         }
@@ -179,15 +216,22 @@ export const useProjectStore = create<ProjectState>()(
             },
           }
         })
+
+        addLog('发起整改', nodeId, node.name, { description })
       },
 
       resolveRectification: (nodeId: string, rectId: string, afterPhotos: Photo[] = []) => {
+        const user = getCurrentUser()
+        if (!user) return
+
         const { project } = get()
         const nodeIndex = project.nodes.findIndex((n) => n.id === nodeId)
         if (nodeIndex === -1) return
 
         const rectIndex = project.nodes[nodeIndex].rectifications.findIndex((r) => r.id === rectId)
         if (rectIndex === -1) return
+
+        const node = project.nodes[nodeIndex]
 
         set((state) => {
           const newNodes = [...state.project.nodes]
@@ -197,6 +241,8 @@ export const useProjectStore = create<ProjectState>()(
             status: 'resolved',
             afterPhotos,
             resolvedAt: getNowString(),
+            resolvedByUserId: user.id,
+            resolvedByUserName: user.name,
           }
           newNodes[nodeIndex] = {
             ...newNodes[nodeIndex],
@@ -209,15 +255,22 @@ export const useProjectStore = create<ProjectState>()(
             },
           }
         })
+
+        addLog('提交整改完成', nodeId, node.name, { rectId })
       },
 
       verifyRectification: (nodeId: string, rectId: string, passed: boolean) => {
+        const user = getCurrentUser()
+        if (!user) return
+
         const { project } = get()
         const nodeIndex = project.nodes.findIndex((n) => n.id === nodeId)
         if (nodeIndex === -1) return
 
         const rectIndex = project.nodes[nodeIndex].rectifications.findIndex((r) => r.id === rectId)
         if (rectIndex === -1) return
+
+        const node = project.nodes[nodeIndex]
 
         set((state) => {
           const newNodes = [...state.project.nodes]
@@ -228,6 +281,8 @@ export const useProjectStore = create<ProjectState>()(
               ...newRects[rectIndex],
               status: 'verified',
               verifiedAt: getNowString(),
+              verifiedByUserId: user.id,
+              verifiedByUserName: user.name,
             }
           } else {
             newRects[rectIndex] = {
@@ -235,6 +290,8 @@ export const useProjectStore = create<ProjectState>()(
               status: 'pending',
               afterPhotos: [],
               resolvedAt: undefined,
+              resolvedByUserId: undefined,
+              resolvedByUserName: undefined,
             }
           }
 
@@ -254,10 +311,18 @@ export const useProjectStore = create<ProjectState>()(
             },
           }
         })
+
+        addLog(
+          passed ? '验证整改通过' : '验证整改不通过',
+          nodeId,
+          node.name,
+          { rectId, passed },
+        )
       },
 
       resetProject: () => {
-        set({ project: mockProject, currentRole: 'foreman' })
+        set({ project: mockProject })
+        addLog('重置项目数据')
       },
     }),
     {

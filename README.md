@@ -1,57 +1,160 @@
-# React + TypeScript + Vite
+# 装修隐蔽工程验收簿
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+一款面向家装工程的数字化验收工具，用于规范和记录水电走线、防水闭水、吊顶龙骨、墙面基层等隐蔽工程的验收流程。支持用户账号系统，所有操作均有账号级留痕。
 
-Currently, two official plugins are available:
+## 功能特点
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### 🏗️ 四个验收节点
 
-## Expanding the ESLint configuration
+- **水电走线** - 电路布线、水管铺设等隐蔽工程验收
+- **防水闭水** - 卫生间、厨房防水施工及闭水试验验收
+- **吊顶龙骨** - 吊顶龙骨安装、承重结构验收
+- **墙面基层** - 墙面找平、腻子基层处理验收
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 👤 用户账号系统
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+- 支持注册、登录、退出
+- 每个账号绑定固定角色身份（工长/业主/监理）
+- 密码本地加密存储
+- 预置三个测试账号，密码均为 `123456`
+  - 工长：`gongzhang`
+  - 业主：`yezhu`
+  - 监理：`jianli`
+
+### 👥 三种角色协同
+
+- **工长** 👷：上传验收照片、提交验收申请、完成整改
+- **业主** 🏠：查看验收内容、签字确认
+- **监理** 📋：专业验收、签字确认、发起整改项、验证整改
+
+### ✍️ 签字确认
+
+- 业主和监理需分别签字确认
+- 支持 Canvas 手写签字
+- 两人都签字后节点才算通过
+- 签字记录与用户账号绑定
+
+### ⚠️ 整改管理
+
+- 监理可发起整改项
+- 工长提交整改完成
+- 监理验证整改结果
+- **整改阻塞机制**：存在未完成整改项时，不能签字验收、不能进入下一节点
+
+### 🔒 流程顺序控制
+
+- 四个节点按顺序进行
+- 前一节点未通过，下一节点锁定不可进入
+
+### 📝 账号级留痕
+
+- 所有操作记录用户身份（ID、姓名、角色）
+- 照片上传记录上传人
+- 签字记录签字人
+- 整改项记录创建人、整改人、验证人
+- 操作日志完整记录所有关键操作
+- 数据本地持久化存储
+
+## 技术栈
+
+- **前端框架**：React 18 + TypeScript + Vite
+- **样式方案**：TailwindCSS 3
+- **状态管理**：Zustand + localStorage 持久化
+- **图标库**：Lucide React
+- **路由**：React Router DOM
+
+## 快速开始
+
+### 安装依赖
+
+```bash
+pnpm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 启动开发服务器
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  extends: [
-    // other configs...
-    // Enable lint rules for React
-    reactX.configs['recommended-typescript'],
-    // Enable lint rules for React DOM
-    reactDom.configs.recommended,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```bash
+pnpm run dev
 ```
+
+### 构建生产版本
+
+```bash
+pnpm run build
+```
+
+### 代码检查
+
+```bash
+pnpm run lint
+pnpm run check
+```
+
+## 项目结构
+
+```
+src/
+├── components/          # UI组件
+│   ├── LoginModal.tsx       # 登录弹窗
+│   ├── RegisterModal.tsx    # 注册弹窗
+│   ├── UserMenu.tsx         # 用户菜单
+│   ├── ProgressTimeline.tsx # 进度时间线
+│   ├── NodeCard.tsx         # 节点卡片
+│   ├── PhotoGallery.tsx     # 照片画廊
+│   ├── SignaturePanel.tsx   # 签字面板
+│   └── RectificationList.tsx # 整改项列表
+├── pages/               # 页面
+│   ├── Home.tsx            # 验收总览页
+│   └── NodeDetail.tsx      # 节点详情页
+├── store/               # 状态管理
+│   ├── useAuthStore.ts      # 认证状态（用户、登录、操作日志）
+│   └── useProjectStore.ts   # 项目验收数据
+├── types/               # 类型定义
+│   └── index.ts
+├── data/                # Mock数据
+│   └── mockData.ts
+├── utils/               # 工具函数
+│   └── status.ts
+├── lib/                 # 公共库
+│   └── utils.ts
+├── App.tsx
+├── main.tsx
+└── index.css
+```
+
+## 使用说明
+
+1. **注册账号**：首次使用请注册账号，每个账号绑定一个角色（工长/业主/监理）
+2. **登录系统**：使用注册的账号密码登录
+3. **工长操作**：
+   - 进入对应验收节点
+   - 上传现场照片（水电走线、防水闭水等）
+   - 提交验收申请
+4. **业主/监理操作**：
+   - 登录对应角色的账号
+   - 查看验收照片和详情
+   - 如有问题，监理可发起整改项
+   - 确认无误后进行手写签字
+5. **整改流程**：
+   - 监理发起整改项
+   - 工长查看并完成整改
+   - 监理验证整改结果
+   - 所有整改项验证通过后才能继续验收
+6. **节点解锁**：前一节点验收通过后，下一节点自动解锁
+7. **操作记录**：点击顶部时钟图标可查看所有操作日志
+
+## 业务规则
+
+1. **流程顺序**：四个节点按顺序进行，前一节点未通过不能进入下一节点
+2. **签字规则**：业主和监理都签字后节点才算通过
+3. **整改阻塞**：存在未完成整改项时，不能提交验收、不能通过验收
+4. **角色权限**：
+   - 工长：上传照片、提交验收、提交整改
+   - 业主：查看、签字
+   - 监理：查看、签字、添加整改项、验证整改
+5. **状态流转**：待提交 → 已提交 → (有整改项 → 整改中 → 已整改 → 已验证) → 已通过
+6. **账号留痕**：所有操作记录与用户账号绑定，操作日志可追溯
+
+## License
+
+MIT

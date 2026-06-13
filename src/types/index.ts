@@ -4,12 +4,23 @@ export type NodeStatus = 'pending' | 'submitted' | 'rejected' | 'passed'
 
 export type RectificationStatus = 'pending' | 'resolved' | 'verified'
 
+export interface User {
+  id: string
+  username: string
+  name: string
+  role: Role
+  avatar: string
+  createdAt: string
+}
+
 export interface Photo {
   id: string
   url: string
   caption?: string
   uploadAt: string
   uploadBy: Role
+  uploadByUserId: string
+  uploadByUserName: string
 }
 
 export interface Signature {
@@ -18,6 +29,7 @@ export interface Signature {
   signed: boolean
   signedAt?: string
   signatureData?: string
+  signedByUserId?: string
 }
 
 export interface Rectification {
@@ -26,10 +38,16 @@ export interface Rectification {
   status: RectificationStatus
   createdAt: string
   createdBy: Role
+  createdByUserId: string
+  createdByUserName: string
   beforePhotos: Photo[]
   afterPhotos: Photo[]
   resolvedAt?: string
+  resolvedByUserId?: string
+  resolvedByUserName?: string
   verifiedAt?: string
+  verifiedByUserId?: string
+  verifiedByUserName?: string
 }
 
 export interface AcceptanceNode {
@@ -42,6 +60,8 @@ export interface AcceptanceNode {
   signatures: Signature[]
   rectifications: Rectification[]
   submittedAt?: string
+  submittedByUserId?: string
+  submittedByUserName?: string
   passedAt?: string
 }
 
@@ -50,10 +70,24 @@ export interface Project {
   name: string
   address: string
   nodes: AcceptanceNode[]
+  ownerUserId: string
+  createdAt: string
 }
 
 export interface RoleInfo {
   role: Role
   name: string
   avatar: string
+}
+
+export interface OperationLog {
+  id: string
+  userId: string
+  userName: string
+  role: Role
+  action: string
+  nodeId?: string
+  nodeName?: string
+  timestamp: string
+  details?: Record<string, unknown>
 }

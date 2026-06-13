@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Check, X, PenLine, Clock, User } from 'lucide-react'
+import { Check, PenLine, Clock, User } from 'lucide-react'
 import type { Signature } from '../types'
 import { getRoleText } from '../utils/status'
 import { cn } from '../lib/utils'
@@ -12,7 +12,6 @@ interface SignaturePanelProps {
 }
 
 export function SignaturePanel({ signatures, canSign, currentRole, onSign }: SignaturePanelProps) {
-  const [isDrawing, setIsDrawing] = useState(false)
   const [showCanvas, setShowCanvas] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const isDrawingRef = useRef(false)
@@ -20,7 +19,6 @@ export function SignaturePanel({ signatures, canSign, currentRole, onSign }: Sig
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
     isDrawingRef.current = true
-    setIsDrawing(true)
     const pos = getPosition(e)
     lastPosRef.current = pos
   }
@@ -48,7 +46,6 @@ export function SignaturePanel({ signatures, canSign, currentRole, onSign }: Sig
 
   const stopDrawing = () => {
     isDrawingRef.current = false
-    setIsDrawing(false)
     lastPosRef.current = null
   }
 

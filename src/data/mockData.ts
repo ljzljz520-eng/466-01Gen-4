@@ -22,6 +22,8 @@ export const mockProject: Project = {
   id: 'proj-001',
   name: '阳光花园 3栋 1802室',
   address: '北京市朝阳区阳光花园小区3号楼1802室',
+  ownerUserId: 'user-owner',
+  createdAt: '2024-06-01 09:00',
   nodes: [
     {
       id: 'node-1',
@@ -36,6 +38,8 @@ export const mockProject: Project = {
           caption: '客厅电路布线',
           uploadAt: '2024-06-10 09:30',
           uploadBy: 'foreman',
+          uploadByUserId: 'user-foreman',
+          uploadByUserName: '张工长',
         },
         {
           id: 'photo-1-2',
@@ -43,6 +47,8 @@ export const mockProject: Project = {
           caption: '卫生间水管铺设',
           uploadAt: '2024-06-10 09:45',
           uploadBy: 'foreman',
+          uploadByUserId: 'user-foreman',
+          uploadByUserName: '张工长',
         },
         {
           id: 'photo-1-3',
@@ -50,15 +56,18 @@ export const mockProject: Project = {
           caption: '厨房电路布局',
           uploadAt: '2024-06-10 10:00',
           uploadBy: 'foreman',
+          uploadByUserId: 'user-foreman',
+          uploadByUserName: '张工长',
         },
       ],
       signatures: [
-        {
+ {
           role: 'owner',
           name: '李业主',
           signed: true,
           signedAt: '2024-06-10 14:20',
           signatureData: 'owner-signature-1',
+          signedByUserId: 'user-owner',
         },
         {
           role: 'supervisor',
@@ -73,6 +82,8 @@ export const mockProject: Project = {
           status: 'verified',
           createdAt: '2024-06-09 16:00',
           createdBy: 'supervisor',
+          createdByUserId: 'user-supervisor',
+          createdByUserName: '王监理',
           beforePhotos: [
             {
               id: 'rect-before-1',
@@ -80,6 +91,8 @@ export const mockProject: Project = {
               caption: '整改前：插座位置偏低',
               uploadAt: '2024-06-09 16:00',
               uploadBy: 'supervisor',
+              uploadByUserId: 'user-supervisor',
+              uploadByUserName: '王监理',
             },
           ],
           afterPhotos: [
@@ -89,13 +102,21 @@ export const mockProject: Project = {
               caption: '整改后：插座已上移',
               uploadAt: '2024-06-10 08:00',
               uploadBy: 'foreman',
+              uploadByUserId: 'user-foreman',
+              uploadByUserName: '张工长',
             },
           ],
           resolvedAt: '2024-06-10 08:30',
+          resolvedByUserId: 'user-foreman',
+          resolvedByUserName: '张工长',
           verifiedAt: '2024-06-10 09:00',
+          verifiedByUserId: 'user-supervisor',
+          verifiedByUserName: '王监理',
         },
       ],
       submittedAt: '2024-06-10 10:30',
+      submittedByUserId: 'user-foreman',
+      submittedByUserName: '张工长',
     },
     {
       id: 'node-2',

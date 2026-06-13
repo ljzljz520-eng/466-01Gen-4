@@ -10,12 +10,14 @@ import {
   AlertTriangle,
   Clock,
   CheckCircle2,
+  User,
 } from 'lucide-react'
-import { RoleSwitcher } from '../components/RoleSwitcher'
+import { UserMenu } from '../components/UserMenu'
 import { PhotoGallery } from '../components/PhotoGallery'
 import { SignaturePanel } from '../components/SignaturePanel'
 import { RectificationList } from '../components/RectificationList'
 import { useProjectStore } from '../store/useProjectStore'
+import { useAuthStore } from '../store/useAuthStore'
 import { getNodeStatusText, getNodeStatusColor } from '../utils/status'
 import { cn } from '../lib/utils'
 import type { Photo } from '../types'
@@ -32,7 +34,6 @@ export default function NodeDetail() {
   const navigate = useNavigate()
   const {
     project,
-    currentRole,
     uploadPhoto,
     submitNode,
     signNode,
@@ -42,6 +43,7 @@ export default function NodeDetail() {
     getNodeIndex,
     canProceedToNode,
   } = useProjectStore()
+  const { currentUser, openLoginModal } = useAuthStore()
 
   const node = project.nodes.find((n) => n.id === id)
 
@@ -56,25 +58,32 @@ export default function NodeDetail() {
   const nodeIndex = getNodeIndex(node.id)
   const isLocked = !canProceedToNode(nodeIndex)
   const Icon = iconMap[node.icon] || Zap
+  const userRole = currentUser?.role
 
-  const canUploadPhoto = currentRole === 'foreman' && node.status !== 'passed' && !isLocked
+  const canUploadPhoto = userRole === 'foreman' && node.status !== 'passed' && !isLocked
   const canSubmit =
-    currentRole === 'foreman' &&
+    userRole === 'foreman' &&
     node.status !== 'passed' &&
     node.photos.length > 0 &&
     node.rectifications.every((r) => r.status === 'verified') &&
     !isLocked
   const canSign =
-    (currentRole === 'owner' || currentRole === 'supervisor') &&
-    node.status === 'submitted' &&
-    node.rectifications.every((r) => r.status === 'verified')
-  const canAddRectification = currentRole === 'supervisor' && node.status !== 'passed' && !isLocked
-  const canResolveRectification = currentRole === 'foreman' && !isLocked
-  const canVerifyRectification = currentRole === 'supervisor' && !isLocked
+    (userRole === 'owner' || userRole === 'supervisor') &&
+    (node.status === 'submitted' || node.status === 'rejected') &&
+    node.rectifications.every((r) => r.status === 'verified') &&
+    currentUser &&
+    !node.signatures.find((s) => s.role === userRole)?.signed
+  const canAddRectification = userRole === 'supervisor' && node.status !== 'passed' && !isLocked
+  const canResolveRectification = userRole === 'foreman' && !isLocked
+  const canVerifyRectification = userRole === 'supervisor' && !isLocked
 
   const hasPendingRect = node.rectifications.some((r) => r.status === 'pending')
 
   const handlePhotoUpload = (file: File) => {
+    if (!currentUser) {
+      openLoginModal()
+      return
+    }
     const reader = new FileReader()
     reader.onload = (e) => {
       const url = e.target?.result as string
@@ -87,24 +96,44 @@ export default function NodeDetail() {
   }
 
   const handleSubmit = () => {
+    if (!currentUser) {
+      openLoginModal()
+      return
+    }
     if (canSubmit) {
       submitNode(node.id)
     }
   }
 
   const handleSign = (signatureData: string) => {
+    if (!currentUser) {
+      openLoginModal()
+      return
+    }
     signNode(node.id, signatureData)
   }
 
   const handleAddRectification = (description: string, beforePhotos: Photo[]) => {
+    if (!currentUser) {
+      openLoginModal()
+      return
+    }
     addRectification(node.id, description, beforePhotos)
   }
 
   const handleResolveRectification = (rectId: string, afterPhotos: Photo[]) => {
+    if (!currentUser) {
+      openLoginModal()
+      return
+    }
     resolveRectification(node.id, rectId, afterPhotos)
   }
 
   const handleVerifyRectification = (rectId: string, passed: boolean) => {
+    if (!currentUser) {
+      openLoginModal()
+      return
+    }
     verifyRectification(node.id, rectId, passed)
   }
 
@@ -143,7 +172,7 @@ export default function NodeDetail() {
                 </div>
               </div>
             </div>
-            <RoleSwitcher />
+            <UserMenu />
           </div>
         </div>
       </header>
@@ -162,9 +191,17 @@ export default function NodeDetail() {
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         {node.submittedAt && (
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Clock className="w-4 h-4" />
-            <span>提交时间：{node.submittedAt}</span>
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2 text-gray-500">
+              <Clock className="w-4 h-4" />
+              <span>提交时间：{node.submittedAt}</span>
+            </div>
+            {node.submittedByUserName && (
+              <div className="flex items-center gap-2 text-gray-500">
+                <User className="w-4 h-4" />
+                <span>提交人：{node.submittedByUserName}</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -197,14 +234,38 @@ export default function NodeDetail() {
               onUpload={handlePhotoUpload}
             />
           )}
+
+          {!currentUser && !canUploadPhoto && node.photos.length === 0 && (
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg text-center">
+              <p className="text-sm text-blue-700">
+                请
+                <button onClick={openLoginModal} className="text-blue-600 font-medium hover:underline ml-1">
+                  登录工长账号
+                </button>
+                上传照片
+              </p>
+            </div>
+          )}
         </div>
 
         <SignaturePanel
           signatures={node.signatures}
           canSign={canSign}
-          currentRole={currentRole}
+          currentRole={userRole || 'foreman'}
           onSign={handleSign}
         />
+
+        {!currentUser && node.status !== 'passed' && (
+          <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 text-center">
+            <p className="text-sm text-blue-700">
+              请
+              <button onClick={openLoginModal} className="text-blue-600 font-medium hover:underline mx-1">
+                登录
+              </button>
+              后进行签字和整改操作
+            </p>
+          </div>
+        )}
 
         {hasPendingRect && (
           <div className="p-4 bg-red-50 rounded-xl border border-red-200 flex items-center gap-3">
@@ -237,15 +298,22 @@ export default function NodeDetail() {
               <Send className="w-5 h-5" />
               提交验收申请
             </button>
-          ) : node.status === 'pending' && currentRole === 'foreman' ? (
+          ) : !currentUser ? (
+            <button
+              onClick={openLoginModal}
+              className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-xl transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
+            >
+              登录后操作
+            </button>
+          ) : node.status === 'pending' && userRole === 'foreman' ? (
             <div className="text-center py-2 text-gray-500 text-sm">
               请先上传验收照片后再提交
             </div>
-          ) : hasPendingRect && currentRole === 'foreman' ? (
+          ) : hasPendingRect && userRole === 'foreman' ? (
             <div className="text-center py-2 text-orange-600 text-sm">
               请先完成所有整改项后再提交验收
             </div>
-          ) : node.status === 'submitted' ? (
+          ) : node.status === 'submitted' || node.status === 'rejected' ? (
             <div className="text-center py-2 text-blue-600 text-sm">
               等待业主和监理签字确认...
             </div>
